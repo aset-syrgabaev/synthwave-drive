@@ -1,6 +1,5 @@
 # Synthwave Drive
 
-A real-time interactive 3D application in modern OpenGL (C++), built for the Computer Graphics Fundamentals course at Astana IT University.
 
 ## Team: Group SE-2423
 - Tulebayeva Marzhan — UI, Documentation, Sky & Sun Shaders
