@@ -9,9 +9,12 @@
 #if defined(__APPLE__)
 #define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
-#else
+#elif __has_include(<GL/glew.h>)
+#include <GL/glew.h>
+#elif __has_include(<glad/glad.h>)
 #include <glad/glad.h>
 #endif
+
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -39,7 +42,7 @@ public:
             fragmentCode = fShaderStream.str();
         }
         catch (std::ifstream::failure& e) {
-            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ: " << vertexPath << " or " << fragmentPath << std::endl;
         }
         
         const char* vShaderCode = vertexCode.c_str();
@@ -68,6 +71,18 @@ public:
     
     void setFloat(const std::string &name, float value) const { 
         glUniform1f(glGetUniformLocation(ID, name.c_str()), value); 
+    }
+    
+    void setInt(const std::string &name, int value) const { 
+        glUniform1i(glGetUniformLocation(ID, name.c_str()), value); 
+    }
+
+    void setVec2(const std::string &name, const glm::vec2 &val) const {
+        glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(val));
+    }
+
+    void setVec3(const std::string &name, const glm::vec3 &val) const {
+        glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(val));
     }
     
     void setMat4(const std::string &name, const glm::mat4 &mat) const { 
