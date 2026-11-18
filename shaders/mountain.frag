@@ -4,19 +4,30 @@ in vec3 Normal;
 out vec4 FragColor;
 
 uniform vec3 viewPos;
+uniform vec3 baseColor;
+uniform vec3 peakColor;
 
 void main()
 {
     vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(vec3(0.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(0.0, 0.9, -1.0));
     float diff = max(dot(norm, lightDir), 0.0);
 
-    vec3 darkPurple = vec3(0.12, 0.02, 0.22);
-    vec3 neonPink = vec3(0.95, 0.1, 0.65);
-    vec3 color = mix(darkPurple, neonPink, diff);
+    float heightFactor = clamp(FragPos.y / 15.0, 0.0, 1.0);
+    vec3 surfaceColor = mix(baseColor, peakColor, heightFactor);
+
+    vec3 ambient = baseColor * 0.45;
+    vec3 diffuse = diff * surfaceColor;
+
+    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    float spec = pow(max(dot(norm, halfwayDir), 0.0), 32.0);
+    vec3 specular = spec * peakColor * 0.4;
+
+    vec3 color = ambient + diffuse + specular;
 
     float dist = length(FragPos - viewPos);
-    float fog = smoothstep(50.0, 140.0, dist);
+    float fog = smoothstep(45.0, 140.0, dist);
     vec3 fogColor = vec3(0.95, 0.25, 0.55);
     color = mix(color, fogColor, fog);
 
