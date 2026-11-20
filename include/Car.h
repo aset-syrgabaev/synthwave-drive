@@ -1,159 +1,178 @@
 #ifndef CAR_H
 #define CAR_H
 
-#include <vector>
-
-#if defined(__APPLE__)
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/gl3.h>
-#elif __has_include(<GL/glew.h>)
-#include <GL/glew.h>
-#elif __has_include(<glad/glad.h>)
-#include <glad/glad.h>
-#endif
-
+#include <cmath>
+#include <algorithm>
+#include "GLHeaders.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Shader.h"
+#include "Mesh.h"
+#include "Primitives.h"
+#include "CarModel.h"
+#include "AkiraBike.h"
 
+// Набор уникальных параметров для каждого из 8 скинов:
+// меняется не только кузов, но и цвет фар, стоп-сигналов, дисков, шлейфов, неона и щита.
+struct SkinStyle {
+    glm::vec3 carBody;
+    glm::vec3 bikeBody;
+    glm::vec3 headlight;
+    glm::vec3 taillight;
+    glm::vec3 trail;
+    glm::vec3 accent;
+    glm::vec3 shield;
+    float rimGlow;
+};
+
+// Основной класс транспорта игрока: DeLorean DMC-12 и мотоцикл Канэды "Акира".
+// Реализует иерархическую систему трансформаций (корпус -> колёса, двери, шлейфы) и физику движения.
 class Car {
+public:
+    static const SkinStyle& getSkinStyle(int idx);
+    glm::vec3 getHeadlightBeamColor() const;
+
 private:
-    unsigned int cubeVAO, cubeVBO;
+    // Базовые примитивы и заранее сгенерированные 3D-меши кузова, дверей и кабины DeLorean
+    Mesh cube;
+    Mesh cylinder;
+    Mesh sphere;
+    Mesh shieldSphere;
+    Mesh bodyMesh;
+    Mesh cabinGlassMesh;
+    Mesh cabinFrameMesh;
+    Mesh doorMetalL;
+    Mesh doorMetalR;
+    Mesh doorGlassL;
+    Mesh doorGlassR;
+    Mesh doorTrimL;
+    Mesh doorTrimR;
 
-    void initCube() {
-        float vertices[] = {
-            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-             0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-             0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+    // 3D-детали мотоцикла Канэды из Акиры (обтекатели, шасси, ветровик, шины, колпаки и надписи)
+    Mesh akiraWingLMesh;
+    Mesh akiraWingRMesh;
+    Mesh akiraNoseBridgeMesh;
+    Mesh akiraLowerChassisMesh;
+    Mesh akiraRearPodMesh;
+    Mesh akiraWindscreenMesh;
+    Mesh akiraTireFrontMesh;
+    Mesh akiraTireRearMesh;
+    Mesh akiraHubFrontMesh;
+    Mesh akiraHubRearMesh;
+    Mesh akiraDecalDisc;
+    Mesh akiraDecalStar;
+    Mesh akiraDecalTri;
+    Mesh akiraTextCitizen;
+    Mesh akiraTextCanon;
+    Mesh akiraTextShoei;
+    Mesh akiraPillMesh;
+    Mesh trailRibbonMesh; // лента для светящихся шлейфов за фарами и колёсами
+    float clock;
 
-            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-             0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-             0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-             0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+    // Вспомогательные функции отрисовки отдельных узлов DeLorean (реализация в CarRenderDeLorean.cpp)
+    void part(const Shader& s, const Mesh& m, const glm::mat4& root, const glm::mat4& local, const glm::vec3& color,
+              const glm::vec3& emissive = glm::vec3(0.0f), float shininess = 96.0f, float refl = 0.0f) const;
+    static glm::mat4 boxAt(const glm::vec3& p, const glm::vec3& size);
 
-            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+    void drawGullwingDoors(const Shader& s, const glm::mat4& root, const glm::vec3& steel, const glm::vec3& glass, const glm::vec3& darkTrim) const;
+    void drawWheelsAndThrusters(const Shader& s, const glm::mat4& root, const glm::vec3& glow) const;
+    void drawLouversAndRearDeck(const Shader& s, const glm::mat4& root) const;
+    void drawFrontFasciaAndHoodDetails(const Shader& s, const glm::mat4& root, const glm::vec3& darkTrim, const glm::vec3& steel) const;
+    void drawRearFasciaAndTaillights(const Shader& s, const glm::mat4& root, const glm::vec3& darkTrim) const;
+    void drawTimeMachineConversion(const Shader& s, const glm::mat4& root, const glm::vec3& glow) const;
+    void drawCockpitInterior(const Shader& s, const glm::mat4& root) const;
 
-             0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-             0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-             0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-             0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-             0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-             0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-        };
-
-        glGenVertexArrays(1, &cubeVAO);
-        glGenBuffers(1, &cubeVBO);
-        glBindVertexArray(cubeVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glBindVertexArray(0);
-    }
-
-    void drawPart(const Shader& shader, const glm::mat4& model, const glm::vec3& color, const glm::vec3& emissive = glm::vec3(0.0f), float shininess = 32.0f) {
-        shader.setMat4("model", model);
-        shader.setVec3("objectColor", color);
-        shader.setVec3("emissiveColor", emissive);
-        shader.setFloat("shininess", shininess);
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
+    // Вспомогательные функции отрисовки мотоцикла Акиры (реализация в CarRenderAkira.cpp)
+    void tube(const Shader& s, const glm::mat4& root, const glm::vec3& a, const glm::vec3& b, float r,
+              const glm::vec3& col, const glm::vec3& em = glm::vec3(0.0f), float shin = 64.0f, float refl = 0.2f) const;
+    void ball(const Shader& s, const glm::mat4& root, const glm::vec3& p, const glm::vec3& radii,
+              const glm::vec3& col, const glm::vec3& em = glm::vec3(0.0f), float shin = 64.0f, float refl = 0.2f) const;
+    void drawAkiraBike(const Shader& s, const glm::mat4& root, const glm::vec3& bikePaint, const glm::vec3& neonCol,
+                       const glm::vec3& darkTrim, float bodyShin, float bodyRefl) const;
 
 public:
+    static constexpr float kGround = 0.54f; // высота центра кузова над поверхностью земли (чтобы шины ровно касались пола)
+
+    // Физические координаты, скорости, флаги трюков и активных способностей (обновляются в CarPhysics.cpp)
     float posX = 0.0f;
-    float steeringTilt = 0.0f;
-    float wheelRotation = 0.0f;
+    float posY = kGround;
+    float roadY = 0.0f;
+    float roadSlopePitch = 0.0f;
+    float velY = 0.0f;
+    float duckAmount = 0.0f;
+    float suspensionOffset = 0.0f;
+    float suspensionVel = 0.0f;
+    float yawSlip = 0.0f;
+    float empWaveRadius = 0.0f;
+    float empWaveAlpha = 0.0f;
+    float doubleJumpFlash = 0.0f;
+    float morphFlash = 0.0f;
+    float akiraSlideTimer = 0.0f;
+    float barrelRollTimer = 0.0f;
+    float barrelRollAngle = 0.0f;
+    float trickTimer = 0.0f;
+    float trickAngle = 0.0f;
+    bool trickDone = false;
+    bool psychoActive = false;
+    int akiraSlideDir = 1;
+    int jumpCount = 0;           // сколько прыжков уже сделано в воздухе
+    int paintIdx = 0;            // текущий скин (0..7, меняется клавишей B)
+    int turnSignalDir = 0;       // -1 левый поворотник, 0 выкл, +1 правый
+    bool bikeMode = false;       // false = DeLorean DMC-12, true = мотоцикл Акиры (клавиша K)
+    bool nitroDashActive = false;
+    bool magnetOverdriveActive = false;
+    bool braking = false;
+    bool sandevistanActive = false;
+    bool phaseShiftActive = false;
+    bool doubleJumpUsed = false;
+    bool grounded = true;        // стоит ли транспорт сейчас на твёрдой опоре
+    bool hover = false;          // включён ли режим полёта (клавиша F)
+    bool prevHover = false;
+    bool headlights = true;      // включены ли фары (клавиша L)
+    bool visible = true;
+    bool doorsOpen = false;      // открыты ли двери крыло чайки (клавиша O)
+    bool shieldActive = false;
+    bool superJump = false;
+    bool onTrainRoof = false;
+    bool onTunnelRoof = false;
 
-    Car() {
-        initCube();
-    }
+    // Углы для иерархической анимации (складывание колёс, двери, руль, крен, тангаж и вращение шин)
+    float hoverBlend = 0.0f;
+    float doorAngle = 0.0f;
+    float steerAngle = 0.0f;
+    float tilt = 0.0f;
+    float pitch = 0.0f;
+    float wheelRot = 0.0f;
+    float lateralVel = 0.0f;
+    float boostGlow = 0.0f;
 
-    void update(float targetSteer, float speed, float dt) {
-        posX += targetSteer * 10.0f * dt;
-        if (posX < -3.8f) posX = -3.8f;
-        if (posX >  3.8f) posX =  3.8f;
+    Car();
 
-        float targetTilt = -targetSteer * 14.0f;
-        steeringTilt += (targetTilt - steeringTilt) * 10.0f * dt;
-        wheelRotation += speed * 30.0f * dt;
-    }
+    // Действия игрока (вызываются из GameInput.cpp)
+    int jump(float launchBoost = 1.0f, bool allowAirJumps = true);
+    bool startTrick();
+    bool consumeTrickDone();
+    void triggerEmpWave();
+    void fastDrop();
+    void toggleDoors();
+    void toggleVehicleMode();
+    void triggerAkiraSlide(int dir);
 
-    void draw(const Shader& shader) {
-        glm::mat4 root = glm::mat4(1.0f);
-        root = glm::translate(root, glm::vec3(posX, 0.42f, 0.0f));
-        root = glm::rotate(root, glm::radians(steeringTilt), glm::vec3(0.0f, 0.0f, 1.0f));
+    // Нижняя точка колёс в мировых координатах и проверка, едем ли сейчас внутри подземного туннеля
+    float bottomWorldY() const { return posY - kGround; }
+    bool isInsideTunnel() const { return (roadY < -1.0f && !onTunnelRoof && bottomWorldY() < -0.5f); }
 
-        glm::mat4 body = glm::scale(root, glm::vec3(1.7f, 0.35f, 3.4f));
-        drawPart(shader, body, glm::vec3(0.12f, 0.02f, 0.22f), glm::vec3(0.0f), 64.0f);
+    void reset();
+    // Строит корневую матрицу кузова и поднимает её так, чтобы колёса не проваливались в пол при наклоне
+    glm::mat4 computeRootMatrix() const;
+    // Главный шаг физики транспорта: гравитация, пол, твёрдый потолок ЛРТ, выталкивание от стен поезда
+    void update(float targetX, float speed, bool duckInput, float worldFloorY, bool onRamp, bool tunnelRoofFlag,
+                float currentRoadY, float nextRoadY, float dt, float realDt,
+                float worldCeilingY = 999.0f, bool hasLateralClamp = false, float clampedPosX = 0.0f);
 
-        glm::mat4 cabin = glm::translate(root, glm::vec3(0.0f, 0.32f, 0.1f));
-        cabin = glm::scale(cabin, glm::vec3(1.2f, 0.32f, 1.7f));
-        drawPart(shader, cabin, glm::vec3(0.05f, 0.1f, 0.2f), glm::vec3(0.0f, 0.15f, 0.25f), 128.0f);
-
-        glm::mat4 spoiler = glm::translate(root, glm::vec3(0.0f, 0.40f, 1.55f));
-        spoiler = glm::scale(spoiler, glm::vec3(1.8f, 0.06f, 0.35f));
-        drawPart(shader, spoiler, glm::vec3(0.95f, 0.1f, 0.6f), glm::vec3(0.4f, 0.0f, 0.2f), 32.0f);
-
-        glm::mat4 mountL = glm::translate(root, glm::vec3(-0.6f, 0.26f, 1.55f));
-        mountL = glm::scale(mountL, glm::vec3(0.06f, 0.22f, 0.1f));
-        drawPart(shader, mountL, glm::vec3(0.1f, 0.1f, 0.1f));
-        glm::mat4 mountR = glm::translate(root, glm::vec3( 0.6f, 0.26f, 1.55f));
-        mountR = glm::scale(mountR, glm::vec3(0.06f, 0.22f, 0.1f));
-        drawPart(shader, mountR, glm::vec3(0.1f, 0.1f, 0.1f));
-
-        glm::mat4 tailLight = glm::translate(root, glm::vec3(0.0f, 0.08f, 1.71f));
-        tailLight = glm::scale(tailLight, glm::vec3(1.5f, 0.10f, 0.04f));
-        drawPart(shader, tailLight, glm::vec3(1.0f, 0.05f, 0.2f), glm::vec3(1.8f, 0.1f, 0.3f));
-
-        glm::mat4 headL = glm::translate(root, glm::vec3(-0.65f, 0.0f, -1.71f));
-        headL = glm::scale(headL, glm::vec3(0.32f, 0.12f, 0.04f));
-        drawPart(shader, headL, glm::vec3(0.0f, 1.0f, 0.9f), glm::vec3(0.0f, 2.0f, 1.8f));
-
-        glm::mat4 headR = glm::translate(root, glm::vec3( 0.65f, 0.0f, -1.71f));
-        headR = glm::scale(headR, glm::vec3(0.32f, 0.12f, 0.04f));
-        drawPart(shader, headR, glm::vec3(0.0f, 1.0f, 0.9f), glm::vec3(0.0f, 2.0f, 1.8f));
-
-        glm::vec3 wheelOffsets[4] = {
-            glm::vec3(-0.90f, -0.15f,  1.0f),
-            glm::vec3( 0.90f, -0.15f,  1.0f),
-            glm::vec3(-0.90f, -0.15f, -1.0f),
-            glm::vec3( 0.90f, -0.15f, -1.0f)
-        };
-
-        for (int i = 0; i < 4; ++i) {
-            glm::mat4 w = glm::translate(root, wheelOffsets[i]);
-            w = glm::rotate(w, glm::radians(wheelRotation), glm::vec3(1.0f, 0.0f, 0.0f));
-            w = glm::scale(w, glm::vec3(0.24f, 0.50f, 0.50f));
-            drawPart(shader, w, glm::vec3(0.08f, 0.08f, 0.12f), glm::vec3(0.0f, 0.2f, 0.3f), 16.0f);
-        }
-    }
+    // Отрисовка: сначала непрозрачный кузов (draw), потом прозрачные эффекты (drawTranslucentEffects)
+    void draw(const Shader& s, const glm::vec3& glow) const;
+    void drawTranslucentEffects(const Shader& s) const;
 };
 
 #endif
