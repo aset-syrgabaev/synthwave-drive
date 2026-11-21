@@ -1,6 +1,14 @@
 #include "VegasCity.h"
 
-// Генерация архитектурных ансамблей локаций 0-2 (Night City, 1985 Las Vegas, Neo-Tokyo Akira)
+// ============================================================================
+// ПРОЦЕДУРНАЯ АРХИТЕКТУРА ЛОКАЦИЙ 0–2 (VegasCityErasA.cpp) — КРИТЕРИИ R2 И B4
+// ВАЖНО ДЛЯ ЗАЩИТЫ:
+//   Строит 3 города из компактных параметрических слотов (Slot: позиция, размер, params):
+//     Era 0: 2077 NIGHT CITY — киберпанк-небоскрёбы, билборды и летающий трафик;
+//     Era 1: 1985 LAS VEGAS  — Luxor, High Roller, фонтаны Bellagio, Эйфелева башня;
+//     Era 2: NEO-TOKYO AKIRA — красные вантовые мосты, башни и поезда-пули.
+//   Все сотни зданий рисуются в VegasCityErasB.cpp ОДНИМ вызовом glDrawArraysInstanced!
+// ============================================================================
 
 void VegasCity::addSlot(int era, glm::vec3 pos, glm::vec3 size, glm::vec4 params, int animType, float animPhase, float rotZ) {
     eraSlots[era].push_back({pos, size, params, animType, animPhase, rotZ});
