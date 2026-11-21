@@ -1,6 +1,14 @@
 #include "VegasCity.h"
 
-// Генерация локаций 3-7 (Arctic, Orbital, Sahara, Jungle, Mars) и инстансированный рендер
+// ============================================================================
+// АРХИТЕКТУРА ЛОКАЦИЙ 3–7 И GPU-ИНСТАНСИНГ ГОРОДА (VegasCityErasB.cpp) — B4
+// ВАЖНО ДЛЯ ЗАЩИТЫ:
+//   - Генерирует 5 уникальных миров: Arctic Aurora (3), Orbital Station (4),
+//     Sahara Pyramids (5), Neon Jungle (6), Mars Colony (7).
+//   - Внизу файла метод VegasCity::draw() зацикливает все здания по fmod(scroll, 280),
+//     загружает матрицы в matrixVBO через glBufferSubData и выводит весь город
+//     за ОДИН вызов glDrawArraysInstanced(GL_TRIANGLES, 0, 36, count) — ноль тормозов!
+// ============================================================================
 
 // 3: ARCTIC AURORA — ледники, научные купола, радары и северное сияние
 void VegasCity::buildEra3_ArcticAurora() {
