@@ -1,9 +1,14 @@
 #version 330 core
-layout (location = 0) in vec3 aPos;
+// ============================================================================
+// ВЕРШИННЫЙ ШЕЙДЕР ЧАСТИЦ (particles.vert) — дождь, снег, песок, линии нитро
+// Каждая частица в SpeedParticles.h задаётся отрезком (GL_LINES) из 2 вершин.
+// Переводим вершину отрезка на экран стандартной цепочкой P * V * M * aPos.
+// ============================================================================
+layout (location = 0) in vec3 aPos; // мировая координата конца линии частицы
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 model;      // матрица модели
+uniform mat4 view;       // матрица камеры
+uniform mat4 projection; // перспективная проекция
 
 void main()
 {
