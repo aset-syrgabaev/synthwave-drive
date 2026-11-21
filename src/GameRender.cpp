@@ -16,7 +16,11 @@ void GameApp::render3DScene() {
     bool camUnderRoof  = (carInTunnel && camRoadY < -3.8f);
     // На паузе время для камеры останавливаем, кроме режима свободной орбиты (4)
     float camDt = ((state == STATE_PLAYING && !overlayOpen) || state == STATE_MENU || camera.Mode == ORBIT_CAM) ? deltaTime : 0.0f;
-    camera.UpdateChase(delorean.posX, delorean.posY, delorean.tilt, boostFactor, camDt, camRoadY, camUnderRoof);
+    // Передаём в камеру тангаж (pitch), факт прыжка и трюка, чтобы транспорт НИКОГДА не перекрывал вид
+    bool carAirborne = (!delorean.grounded && !delorean.hover);
+    bool carTricking = (delorean.trickTimer > 0.0f);
+    camera.UpdateChase(delorean.posX, delorean.posY, delorean.tilt, boostFactor, camDt,
+                       camRoadY, camUnderRoof, delorean.pitch, carAirborne, carTricking);
 
     // Главные матрицы камеры (требование R3):
     // projection — перспективная проекция (угол обзора Zoom, соотношение сторон, ближняя/дальняя плоскости)
