@@ -26,7 +26,9 @@ uniform bool headlightsOn;   // включены ли фары
 
 const float PI = 3.14159265359;
 
-// Распределение микрограней GGX: определяет форму и резкость зеркального блика
+// Распределение микрограней GGX (Trowbridge-Reitz, буква D в формуле Cook-Torrance).
+// Отвечает за то, какая доля микроскопических зеркал на поверхности повёрнута точно к половинному вектору H.
+// Чем меньше roughness (шероховатость), тем уже и ярче зеркальный блик на кузове!
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
     float a = roughness * roughness;
@@ -36,7 +38,8 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
     return a2 / max(PI * denom * denom, 0.0001);
 }
 
-// Геометрическое самозатенение микрограней (Schlick-GGX)
+// Геометрическое самозатенение микрограней (Schlick-GGX, буква G в формуле Cook-Torrance).
+// Учитывает, что микровыступы на шероховатой поверхности заслоняют друг друга от света и от камеры.
 float GeometrySchlickGGX(float NdotV, float roughness)
 {
     float r = (roughness + 1.0);
@@ -44,13 +47,16 @@ float GeometrySchlickGGX(float NdotV, float roughness)
     return NdotV / max(NdotV * (1.0 - k) + k, 0.0001);
 }
 
+// Метод Смита (Smith): объединяет затенение со стороны камеры (V) и со стороны источника света (L).
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
     return GeometrySchlickGGX(max(dot(N, V), 0.0), roughness) *
            GeometrySchlickGGX(max(dot(N, L), 0.0), roughness);
 }
 
-// Приближение Френеля: под скользящим углом любая поверхность отражает свет сильнее
+// Приближение Френеля Шлика (буква F в формуле Cook-Torrance):
+// под острым (скользящим) углом любая поверхность (даже стекло и краска) отражает почти как зеркало.
+// F0 — базовое отражение при взгляде прямо (0.04 для пластика/краски, цвет металла для стали/золота).
 vec3 FresnelSchlick(float cosTheta, vec3 F0)
 {
     return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
@@ -81,21 +87,27 @@ vec3 sampleMoodyCyberEnv(vec3 R, float underground)
     return env * mix(1.0, 0.05, underground);
 }
 
-// Расчёт прямого освещения от одного точечного источника по модели Cook-Torrance
+// ВАЖНО ДЛЯ ЗАЩИТЫ (критерий R4 — пофрагментное PBR-освещение):
+// Расчёт прямого освещения от одного источника света по физически корректной формуле Cook-Torrance:
+//   f_r = kD * (albedo / PI) + (D * G * F) / (4 * (N·V) * (N·L))
+// Здесь H = normalize(V + L) — половинный вектор между направлением на камеру V и на свет L.
 vec3 calcPBRLight(vec3 N, vec3 V, vec3 L, vec3 radiance, vec3 albedo, float metallic, float roughness, vec3 F0)
 {
-    vec3 H = normalize(V + L);
-    float NdotL = max(dot(N, L), 0.0);
+    vec3 H = normalize(V + L);              // половинный вектор (как в Блинне-Фонге, лежит ровно посередине между V и L)
+    float NdotL = max(dot(N, L), 0.0);      // косинус угла падения света (закон Ламберта: 0 если свет сзади грани)
     if (NdotL <= 0.0) return vec3(0.0);
 
-    float NDF = DistributionGGX(N, H, roughness);
-    float G   = GeometrySmith(N, V, L, roughness);
-    vec3  F   = FresnelSchlick(max(dot(H, V), 0.0), F0);
+    float NDF = DistributionGGX(N, H, roughness);          // D: распределение микрограней
+    float G   = GeometrySmith(N, V, L, roughness);         // G: самозатенение микрограней
+    vec3  F   = FresnelSchlick(max(dot(H, V), 0.0), F0);   // F: доля отражённого света (Френель)
 
+    // Зеркальная (specular) составляющая Cook-Torrance (+0.0001 защищает от деления на 0)
     vec3 numerator = NDF * G * F;
     float denom = 4.0 * max(dot(N, V), 0.0) * NdotL + 0.0001;
     vec3 specular = numerator / denom;
 
+    // Закон сохранения энергии: сколько света отразилось (F), столько НЕ может рассеяться (1 - F).
+    // У чистых металлов (metallic = 1) диффузной составляющей kD вообще нет — только зеркальные отражения!
     vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
     return (kD * albedo / PI + specular) * radiance * NdotL;
 }
