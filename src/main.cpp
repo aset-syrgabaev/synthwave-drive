@@ -133,6 +133,7 @@ int main(int argc, char** argv) {
 
     // Режим --shot нужен только нам для быстрого снятия скриншотов в отчёт и слайды
     // Формат: --shot out.bmp yaw pitch dist bike theme skin play crt hover extra
+    int shotExtra = 0;
     if (argc >= 3 && std::string(argv[1]) == "--shot") {
         app.shotMode = true;
         app.shotPath = argv[2];
@@ -145,7 +146,7 @@ int main(int argc, char** argv) {
         if (argc > 9)  app.shotPlay  = std::stoi(argv[9]);
         if (argc > 10) app.shotCrt   = std::stoi(argv[10]);
         if (argc > 11) app.shotHover = std::stoi(argv[11]);
-        int shotExtra = (argc > 12) ? std::stoi(argv[12]) : 0;
+        shotExtra = (argc > 12) ? std::stoi(argv[12]) : 0;
 
         app.themeIdx = std::clamp(app.shotTheme, 0, (int)app.themes.size() - 1);
         if (app.shotBike != 0) app.delorean.toggleVehicleMode();
@@ -184,6 +185,14 @@ int main(int argc, char** argv) {
             // Прокручиваем чуть вперёд по трассе, чтобы в кадре был виден виадук ЛРТ и препятствия
             app.scrollDistance = 42.0f;
             app.track.ensure(app.scrollDistance, false, 4.53f, 'N', 3.0f, false);
+        } else if (shotExtra >= 8 && shotExtra <= 11) {
+            // Тест-кадры живого прыжка для проверки всех камер (8=Chase, 9=Action, 10=Hood, 11=Akira)
+            app.scrollDistance = 12.0f;
+            app.track.ensure(app.scrollDistance, false, 4.53f, 'N', 3.0f, false);
+            if (shotExtra == 8)  app.camera.SetMode(CHASE_CAM);
+            if (shotExtra == 9)  app.camera.SetMode(ACTION_CAM);
+            if (shotExtra == 10) app.camera.SetMode(HOOD_CAM);
+            if (shotExtra == 11) app.camera.SetMode(AKIRA_CAM);
         }
     }
 
@@ -240,6 +249,12 @@ int main(int argc, char** argv) {
         // Проверяем глобальные клавиши (G, H, ESC, T, B, K, L, O, C, камеры 1-5)
         if (!benchMode) app.handleGlobalKeys(window);
         bool overlayOpen = app.showHelpOverlay || app.showSettings;
+
+        // Для тест-скринов прыжка запускаем реальный прыжок на 36-м и двойной на 44-м кадре
+        if (app.shotMode && shotExtra >= 8 && shotExtra <= 11 && app.state == STATE_PLAYING) {
+            if (app.shotFrames == 36) app.delorean.jump(1.0f, true);
+            if (app.shotFrames == 44) app.delorean.jump(1.0f, true);
+        }
 
         // Обновляем логику в зависимости от текущего экрана (меню / езда / пауза / проигрыш)
         if (app.state == STATE_MENU) {
