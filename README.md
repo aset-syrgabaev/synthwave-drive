@@ -7,6 +7,7 @@ Real-time interactive 3D graphics application built in **C++17** and **OpenGL 3.
 - **Group:** SE-2423
 - **Topic:** #13 — **Synthwave Drive ★★** (Core + all 3 official Stretch Goals + extended 8-biome endless highway)
 - **Repository:** https://github.com/aset-syrgabaev/synthwave-drive (Release `v1.0`)
+- **Demo Video (1080p, 4:15):** https://youtu.be/_IpGSN-HNdA
 
 ---
 
